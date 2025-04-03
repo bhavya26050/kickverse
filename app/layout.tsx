@@ -1,7 +1,6 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
+import { Inter } from "next/font/google"
+import type { Metadata } from "next"
 import Navbar from "@/components/Navbar"
 import Footer from "@/components/Footer"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -9,7 +8,7 @@ import { CartProvider } from "@/context/CartContext"
 import { AuthProvider } from "@/context/AuthContext"
 import { WishlistProvider } from "@/context/WishlistContext"
 import { Toaster } from "react-hot-toast"
-import DevTools from "@/components/DevTools"
+import { SessionProvider } from "@/components/SessionProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -32,18 +31,21 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <div className="flex flex-col min-h-screen">
-                  <Navbar />
-                  <main className="flex-grow">{children}</main>
-                  <Footer />
-                </div>
-                <DevTools />
-              </WishlistProvider>
-            </CartProvider>
-          </AuthProvider>
+          <SessionProvider>
+            <AuthProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <div className="flex flex-col min-h-screen">
+                    <Navbar />
+                    <main className="flex-grow">
+                      {children}
+                    </main>
+                    <Footer />
+                  </div>
+                </WishlistProvider>
+              </CartProvider>
+            </AuthProvider>
+          </SessionProvider>
         </ThemeProvider>
         <Toaster
           position="bottom-right"

@@ -1,17 +1,26 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
-import { CartItem } from "@/types/product"
+import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { toast } from "react-hot-toast"
 
-type CartContextType = {
+type CartItem = {
+  productId: string
+  name: string
+  price: number
+  image: string
+  quantity: number
+  size?: string
+  color?: string
+  category?: string
+}
+
+interface CartContextType {
   items: CartItem[]
   addItem: (item: CartItem) => void
-  removeItem: (productId: string, size: string) => void
-  updateItemQuantity: (productId: string, size: string, quantity: number) => void
+  removeItem: (productId: string, size?: string, color?: string) => void
+  updateQuantity: (productId: string, quantity: number, size?: string, color?: string) => void
   clearCart: () => void
   itemCount: number
-  total: number
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -24,109 +33,86 @@ export function useCart() {
   return context
 }
 
-export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
-  const [itemCount, setItemCount] = useState(0)
-  const [total, setTotal] = useState(0)
-
-  // Load cart from localStorage on initial render
-  useEffect(() => {
-    try {
-      const savedCart = localStorage.getItem("cart")
-      if (savedCart) {
-        const parsedCart = JSON.parse(savedCart);
-        // Ensure all items have required properties
-        const validatedCart = parsedCart.map((item: CartItem) => ({
-          ...item,
-          price: item.price || 0,
-          quantity: item.quantity || 1
-        }));
-        setItems(validatedCart)
-      }
-    } catch (error) {
-      console.error("Failed to load cart from localStorage:", error)
-      // If there's an error, let's reset the cart
-      localStorage.removeItem("cart")
+export function CartProvider({ children }: { children: ReactNode }) {
+  // Initialize with localStorage data if available
+  const [items, setItems] = useState<CartItem[]>(() => {
+    // Check if we're in the browser
+    if (typeof window !== "undefined") {
+      const storedCart = localStorage.getItem("cartItems")
+      return storedCart ? JSON.parse(storedCart) : []
     }
-  }, [])
+    return []
+  })
+  
+  // Count total items in cart
+  const itemCount = items.reduce((total, item) => total + (item.quantity || 1), 0)
 
-  // Update localStorage and calculated values whenever items change
+  // Sync cart with localStorage whenever it changes
   useEffect(() => {
-    try {
-      localStorage.setItem("cart", JSON.stringify(items))
-      setItemCount(items.reduce((count, item) => count + item.quantity, 0))
-      setTotal(items.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0))
-    } catch (error) {
-      console.error("Failed to save cart to localStorage:", error)
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cartItems", JSON.stringify(items))
+      console.log("Cart updated:", items)
     }
   }, [items])
 
+  // Add item to cart
   const addItem = (newItem: CartItem) => {
-    if (!newItem.price) {
-      toast.error("Invalid item price")
-      return
-    }
-    
     setItems((prevItems) => {
-      // Check if the item with same productId and size exists
+      // Check if item exists with same productId, size, and color
       const existingItemIndex = prevItems.findIndex(
-        (item) => item.productId === newItem.productId && item.size === newItem.size
+        (item) => 
+          item.productId === newItem.productId && 
+          item.size === newItem.size && 
+          item.color === newItem.color
       )
 
       if (existingItemIndex !== -1) {
-        // Item exists, update quantity
+        // Update quantity of existing item
         const updatedItems = [...prevItems]
-        updatedItems[existingItemIndex] = {
-          ...updatedItems[existingItemIndex],
-          quantity: updatedItems[existingItemIndex].quantity + (newItem.quantity || 1),
-        }
-        toast.success(`${newItem.name} quantity updated in cart!`)
+        updatedItems[existingItemIndex].quantity += newItem.quantity
+        toast.success(`Updated ${newItem.name} quantity in cart`)
         return updatedItems
       } else {
-        // Item doesn't exist, add it
-        toast.success(`${newItem.name} added to cart!`)
-        return [...prevItems, {
-          ...newItem,
-          quantity: newItem.quantity || 1
-        }]
+        // Add new item
+        toast.success(`Added ${newItem.name} to cart`)
+        return [...prevItems, newItem]
       }
     })
   }
 
-  const removeItem = (productId: string, size: string) => {
+  // Remove item from cart
+  const removeItem = (productId: string, size?: string, color?: string) => {
     setItems((prevItems) => {
-      const itemToRemove = prevItems.find(
-        (item) => item.productId === productId && item.size === size
+      const updatedItems = prevItems.filter(
+        (item) => 
+          !(item.productId === productId && 
+            item.size === size && 
+            item.color === color)
       )
-      
-      if (itemToRemove) {
-        toast.success(`${itemToRemove.name} removed from cart`)
-      }
-      
-      return prevItems.filter(
-        (item) => !(item.productId === productId && item.size === size)
-      )
+      return updatedItems
     })
   }
 
-  const updateItemQuantity = (productId: string, size: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeItem(productId, size)
-      return
-    }
-    
-    setItems((prevItems) =>
-      prevItems.map((item) =>
-        item.productId === productId && item.size === size
-          ? { ...item, quantity }
-          : item
-      )
-    )
+  // Update item quantity
+  const updateQuantity = (productId: string, quantity: number, size?: string, color?: string) => {
+    setItems((prevItems) => {
+      return prevItems.map((item) => {
+        if (
+          item.productId === productId && 
+          item.size === size && 
+          item.color === color
+        ) {
+          return { ...item, quantity }
+        }
+        return item
+      })
+    })
   }
 
+  // Clear cart
   const clearCart = () => {
     setItems([])
-    toast.success("Cart cleared")
+    localStorage.removeItem("cartItems")
   }
 
   return (
@@ -135,10 +121,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         items,
         addItem,
         removeItem,
-        updateItemQuantity,
+        updateQuantity,
         clearCart,
         itemCount,
-        total,
       }}
     >
       {children}

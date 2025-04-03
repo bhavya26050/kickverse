@@ -1,45 +1,57 @@
 import mongoose from "mongoose";
 
+// Check for MongoDB URI
 if (!process.env.MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable");
 }
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-let cachedConnection = global.mongoose;
+// Connection options to handle timeouts and retries
+const options = {
+  bufferCommands: false,
+  maxIdleTimeMS: 10000,
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 30000,
+  connectTimeoutMS: 30000,
+};
 
-if (!cachedConnection) {
-  cachedConnection = global.mongoose = { conn: null, promise: null };
+// Cache the connection
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
 }
 
+// Connect function with better error handling
 async function dbConnect() {
-  if (cachedConnection.conn) {
-    console.log("Using existing MongoDB connection");
-    return cachedConnection.conn;
+  // If we already have a connection, use it
+  if (cached.conn) {
+    return cached.conn;
   }
 
-  if (!cachedConnection.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
+  // If we're in the process of connecting, wait for it
+  if (!cached.promise) {
+    console.log("Creating new MongoDB connection to:", 
+      MONGODB_URI.replace(/\/\/([^:]+):([^@]+)@/, "//***:***@")); // Hide credentials in logs
 
-    console.log("Creating new MongoDB connection");
-    cachedConnection.promise = mongoose.connect(MONGODB_URI, opts)
+    cached.promise = mongoose.connect(MONGODB_URI, options)
       .then((mongoose) => {
-        console.log("New MongoDB connection created");
+        console.log("MongoDB connected successfully!");
         return mongoose;
       })
       .catch((error) => {
         console.error("MongoDB connection error:", error);
+        cached.promise = null; // Reset promise on error
         throw error;
       });
   }
 
   try {
-    cachedConnection.conn = await cachedConnection.promise;
-    return cachedConnection.conn;
+    cached.conn = await cached.promise;
+    return cached.conn;
   } catch (error) {
-    cachedConnection.promise = null;
+    cached.promise = null;
     throw error;
   }
 }

@@ -21,7 +21,10 @@ export async function GET(
       )
     }
     
-    return NextResponse.json(product)
+    // Serialize the product to handle MongoDB ObjectIDs
+    const serializedProduct = JSON.parse(JSON.stringify(product))
+    
+    return NextResponse.json(serializedProduct)
   } catch (error) {
     console.error("Error fetching product:", error)
     return NextResponse.json(
