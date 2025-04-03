@@ -1,0 +1,27 @@
+{
+  "name": "kickverse",
+  "version": "1.0.0",
+  "description": "A custom sneaker store with 3D visualization",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "keywords": [
+    "sneakers",
+    "ecommerce",
+    "3D",
+    "custom"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}
